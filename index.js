@@ -31,12 +31,8 @@ app.post('/webhook', (req, res) => {
       responseMessage = 'Puedes contactar con nuestro equipo de atención al cliente enviando un correo a soporte@shop.example.com o llamando al +1234567890.';
       break;
     default:
-      responseMessage = '👋 ¡Hola! Soy el asistente virtual de tu tienda.
-¿Cómo puedo ayudarte?
-1️⃣ Ver productos destacados
-2️⃣ Consultar disponibilidad
-3️⃣ Formas de pago
-4️⃣ Hablar con atención al cliente';
+      responseMessage = '👋 ¡Hola! Soy el asistente virtual de tu tienda.\n¿Cómo puedo ayudarte?\n1️⃣ Ver productos destacados\n2️⃣ Consultar disponibilidad\n3️⃣ Formas de pago\n4️⃣ Hablar con atención al cliente';
+
       break;
   }
 
