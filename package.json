@@ -1,0 +1,14 @@
+{
+  "name": "whatsapp-shopify-bot",
+  "version": "1.0.0",
+  "description": "Chatbot demo para tienda virtual con WhatsApp y Twilio",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "express": "^4.18.2"
+  }
+}
