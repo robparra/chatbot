@@ -46,9 +46,27 @@ function authorizePlan(allowedPlans) {
 app.use('/api/users', userRoutes);
 
 // Inicializa la base de datos
-db.sync().then(() => {
+db.sync().then(async () => {
   console.log('Base de datos lista');
+
+  // Crear respuestas por defecto si no existen
+  const keys = ['greeting', 'option1', 'option2', 'option3', 'option4'];
+  const defaults = {
+    greeting: 'Hola! Bienvenido a nuestro chatbot',
+    option1: 'Información sobre productos',
+    option2: 'Soporte técnico',
+    option3: 'Hablar con un asesor',
+    option4: 'Ver promociones'
+  };
+
+  for (const key of keys) {
+    const existing = await Response.findOne({ where: { key } });
+    if (!existing) {
+      await Response.create({ key, value: defaults[key] });
+    }
+  }
 });
+
 
 // 🔐 Registro de usuario
 app.post('/api/register', async (req, res) => {
