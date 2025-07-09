@@ -1,16 +1,21 @@
-import { Sequelize, DataTypes } from 'sequelize';
-import db from '../utils/db.js';
+import { DataTypes } from 'sequelize';
+import sequelize from '../utils/db.js';
+import User from './User.js';
 
-const Response = db.define('Response', {
+const Response = sequelize.define('Response', {
   key: {
     type: DataTypes.STRING,
-    allowNull: false,
-    unique: true
+    allowNull: false
+    // no unique aquí porque cada usuario puede tener la misma key
   },
   value: {
     type: DataTypes.TEXT,
     allowNull: false
   }
 });
+
+// Relaciones
+User.hasMany(Response, { foreignKey: 'userId' });
+Response.belongsTo(User, { foreignKey: 'userId' });
 
 export default Response;
