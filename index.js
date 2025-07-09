@@ -9,13 +9,16 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import userRoutes from './routes/users.js';
 
-app.use('/api/users', userRoutes);
-
-
-
 dotenv.config();
 
-const app = express();
+const app = express();  // <-- Aquí debe estar primero
+
+app.use(cors());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
+app.use('/api/users', userRoutes);  // <-- Aquí ya puedes usar app
+
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'un-secreto-muy-seguro';
 
