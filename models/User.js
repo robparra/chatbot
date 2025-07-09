@@ -1,11 +1,7 @@
 import { DataTypes } from 'sequelize';
-import sequelize from '../utils/db.js';
+import db from '../utils/db.js';
 
-const User = sequelize.define('User', {
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
+const User = db.define('User', {
   email: {
     type: DataTypes.STRING,
     unique: true,
@@ -16,7 +12,8 @@ const User = sequelize.define('User', {
     allowNull: false
   },
   plan: {
-    type: DataTypes.ENUM('basic', 'pro', 'premium'),
+    type: DataTypes.STRING, // "basic", "pro", "premium"
+    allowNull: false,
     defaultValue: 'basic'
   }
 });
