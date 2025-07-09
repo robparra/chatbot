@@ -67,8 +67,13 @@ app.post('/api/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ message: 'Contraseña incorrecta' });
 
+    // ✅ Incluye el campo "plan" en el token
     const token = jwt.sign(
-      { userId: user.id, email: user.email, plan: user.plan },
+      {
+        userId: user.id,
+        email: user.email,
+        plan: user.plan  // <<--- Aquí va el plan
+      },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -79,6 +84,7 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ message: 'Error interno' });
   }
 });
+
 
 
 // Middleware para validar JWT
