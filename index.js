@@ -3,6 +3,8 @@ import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import db from './utils/db.js';
 import Response from './models/Response.js';
+import cors from 'cors';
+
 
 dotenv.config();
 
@@ -31,6 +33,9 @@ db.sync().then(async () => {
     });
   }
 });
+
+app.use(cors());
+
 
 // ✅ Ruta GET para obtener respuestas
 app.get('/api/responses', async (req, res) => {
