@@ -13,50 +13,43 @@ import path from 'path';
 import fs from 'fs';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'un-secreto-muy-seguro';
 
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-// Asegura que la carpeta de uploads exista
+// Crear carpeta uploads si no existe
 const uploadDir = './uploads';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-// Configuración de multer
+// Configuración multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    const filename = `catalog_${Date.now()}${ext}`;
-    cb(null, filename);
+    cb(null, `catalog_${Date.now()}${ext}`);
   }
 });
 const upload = multer({ storage });
 
-// Ruta para subir el catálogo
+// Subir catálogo
 app.post('/api/upload-catalog', authenticateToken, upload.single('catalog'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: 'No se recibió ningún archivo' });
-  }
+  if (!req.file) return res.status(400).json({ message: 'No se recibió ningún archivo' });
 
   const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
   res.json({ catalogUrl: url });
 });
 
-// Sirve los archivos estáticos subidos
 app.use('/uploads', express.static('uploads'));
 
-// Middleware para validar JWT
+// Middleware autenticación JWT
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader?.split(' ')[1];
@@ -64,12 +57,12 @@ function authenticateToken(req, res, next) {
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ message: 'Token inválido' });
-    req.user = user; // { userId, email, plan }
+    req.user = user;
     next();
   });
 }
 
-// Middleware para verificar el plan del usuario
+// Middleware verificación de plan
 function authorizePlan(allowedPlans) {
   return (req, res, next) => {
     if (!allowedPlans.includes(req.user.plan)) {
@@ -79,48 +72,30 @@ function authorizePlan(allowedPlans) {
   };
 }
 
-// Rutas de usuario (opcional, si quieres modularizar)
 app.use('/api/users', userRoutes);
 
-// Inicializa la base de datos
+// Inicializar base de datos
 db.sync().then(async () => {
   console.log('Base de datos lista');
-
-  // Crear respuestas por defecto si no existen
-  const keys = ['greeting', 'option1', 'option2', 'option3', 'option4'];
-  const defaults = {
-    greeting: 'Hola! Bienvenido a nuestro chatbot',
-    option1: 'Información sobre productos',
-    option2: 'Soporte técnico',
-    option3: 'Hablar con un asesor',
-    option4: 'Ver promociones'
-  };
-
-  for (const key of keys) {
-    const existing = await Response.findOne({ where: { key } });
-    if (!existing) {
-      await Response.create({ key, value: defaults[key] });
-    }
-  }
-});
+}).catch(console.error);
 
 db.authenticate()
   .then(() => console.log('✅ Conectado a PostgreSQL'))
   .catch((err) => console.error('❌ Error al conectar a PostgreSQL:', err));
 
-
-
-// 🔐 Registro de usuario
+// Registro
 app.post('/api/register', async (req, res) => {
   try {
-    const { email, password, plan = 'basic' } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Email y password requeridos' });
+    const { email, password, plan = 'basic', phone } = req.body;
+    if (!email || !password || !phone) {
+      return res.status(400).json({ message: 'Email, teléfono y password requeridos' });
+    }
 
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) return res.status(400).json({ message: 'Usuario ya existe' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({ email, password: hashedPassword, plan });
+    const user = await User.create({ email, phone, password: hashedPassword, plan });
 
     res.json({ message: 'Usuario creado', userId: user.id });
   } catch (error) {
@@ -128,7 +103,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 🔐 Login de usuario
+// Login
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -152,8 +127,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// ✅ Rutas protegidas
-// Obtener respuestas del usuario logueado
+// Obtener respuestas del usuario
 app.get('/api/responses', authenticateToken, async (req, res) => {
   const rows = await Response.findAll({ where: { userId: req.user.userId } });
   const data = {};
@@ -163,7 +137,7 @@ app.get('/api/responses', authenticateToken, async (req, res) => {
   res.json(data);
 });
 
-// Guardar respuestas del usuario logueado
+// Guardar respuestas del usuario
 app.post('/api/responses', authenticateToken, async (req, res) => {
   const entries = Object.entries(req.body);
   for (const [key, value] of entries) {
@@ -172,26 +146,22 @@ app.post('/api/responses', authenticateToken, async (req, res) => {
   res.json({ status: 'ok' });
 });
 
-
-// ✅ Ruta solo para usuarios Pro o Premium
+// Ruta solo para usuarios Pro o Premium
 app.get('/api/pro-feature', authenticateToken, authorizePlan(['pro', 'premium']), (req, res) => {
   res.json({ message: 'Bienvenido a la funcionalidad Pro/Premium' });
 });
 
-// ✅ Webhook (público o protegido, tú decides)
+// Webhook
 app.post('/webhook', async (req, res) => {
   const incomingMsg = req.body.Body?.trim().toLowerCase() || '';
-  const phone = req.body.From; // asumimos que From es el número del usuario (si usas Twilio)
+  const phone = req.body.From?.replace('whatsapp:', '').trim(); // normalizar
 
   try {
-    // Buscar usuario por número (adaptar según cómo guardas eso)
-    const user = await User.findOne({ where: { phone } }); // ← debes guardar phone en registro
-
+    const user = await User.findOne({ where: { phone } });
     if (!user) {
       return res.type('text/xml').send(`<Response><Message>Usuario no encontrado.</Message></Response>`);
     }
 
-    // Obtener respuestas solo de este usuario
     const rows = await Response.findAll({ where: { userId: user.id } });
     const respuestas = {};
     rows.forEach((row) => {
@@ -201,7 +171,6 @@ app.post('/webhook', async (req, res) => {
     let responseMessage = '';
 
     if ((user.plan === 'pro' || user.plan === 'premium') && respuestas.custom_prompt) {
-      // Usar IA personalizada
       try {
         const completion = await openai.chat.completions.create({
           model: 'gpt-3.5-turbo',
@@ -212,19 +181,18 @@ app.post('/webhook', async (req, res) => {
         });
         responseMessage = completion.choices[0].message.content.trim();
       } catch (err) {
-        console.error('OpenAI error:', err);
-        responseMessage = 'Error con IA personalizada.';
+        console.error('❌ Error con OpenAI:', err.response?.data || err.message);
+        responseMessage = 'Ocurrió un error con la IA personalizada.';
       }
     } else {
-      // Plan básico o sin IA, respuestas normales
       switch (incomingMsg) {
-        case '1': responseMessage = respuestas.option1; break;
-        case '2': responseMessage = respuestas.option2; break;
-        case '3': responseMessage = respuestas.option3; break;
-        case '4': responseMessage = respuestas.option4; break;
+        case '1': responseMessage = respuestas.option1 || ''; break;
+        case '2': responseMessage = respuestas.option2 || ''; break;
+        case '3': responseMessage = respuestas.option3 || ''; break;
+        case '4': responseMessage = respuestas.option4 || ''; break;
         case 'catalogo':
         case 'catálogo': responseMessage = respuestas.catalog_url || 'No hay catálogo disponible.'; break;
-        default: responseMessage = respuestas.greeting;
+        default: responseMessage = respuestas.greeting || '¡Hola!';
       }
     }
 
@@ -232,18 +200,16 @@ app.post('/webhook', async (req, res) => {
     <Response>
       <Message>${responseMessage}</Message>
     </Response>`;
+
     res.type('text/xml').send(twiml);
 
   } catch (err) {
-    console.error('Webhook error:', err);
+    console.error('❌ Webhook error:', err);
     res.type('text/xml').send(`<Response><Message>Error inesperado.</Message></Response>`);
   }
 });
 
-
-
-
-// 🚀 Iniciar servidor
+// Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`Servidor escuchando en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor escuchando en http://localhost:${PORT}`);
 });
