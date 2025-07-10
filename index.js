@@ -153,6 +153,8 @@ app.get('/api/pro-feature', authenticateToken, authorizePlan(['pro', 'premium'])
 
 // Webhook
 app.post('/webhook', async (req, res) => {
+  console.log('📲 Body recibido:', req.body);
+
   const incomingMsg = req.body.Body?.trim().toLowerCase() || '';
   const phone = req.body.From?.replace('whatsapp:', '').trim(); // normalizar
 
