@@ -67,6 +67,11 @@ db.sync().then(async () => {
   }
 });
 
+db.authenticate()
+  .then(() => console.log('✅ Conectado a PostgreSQL'))
+  .catch((err) => console.error('❌ Error al conectar a PostgreSQL:', err));
+
+
 
 // 🔐 Registro de usuario
 app.post('/api/register', async (req, res) => {
