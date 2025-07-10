@@ -6,11 +6,19 @@ const Response = sequelize.define('Response', {
   key: {
     type: DataTypes.STRING,
     allowNull: false
-    // no unique aquí porque cada usuario puede tener la misma key
+    // No debe ser único ya que diferentes usuarios pueden usar la misma clave
   },
   value: {
     type: DataTypes.TEXT,
     allowNull: false
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: User,
+      key: 'id'
+    }
   }
 });
 

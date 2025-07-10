@@ -11,6 +11,10 @@ import userRoutes from './routes/users.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import OpenAI from 'openai';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 
 dotenv.config();
 
@@ -149,8 +153,9 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ✅ Rutas protegidas
+// Obtener respuestas del usuario logueado
 app.get('/api/responses', authenticateToken, async (req, res) => {
-  const rows = await Response.findAll();
+  const rows = await Response.findAll({ where: { userId: req.user.userId } });
   const data = {};
   rows.forEach((row) => {
     data[row.key] = row.value;
@@ -158,13 +163,15 @@ app.get('/api/responses', authenticateToken, async (req, res) => {
   res.json(data);
 });
 
+// Guardar respuestas del usuario logueado
 app.post('/api/responses', authenticateToken, async (req, res) => {
   const entries = Object.entries(req.body);
   for (const [key, value] of entries) {
-    await Response.upsert({ key, value });
+    await Response.upsert({ key, value, userId: req.user.userId });
   }
   res.json({ status: 'ok' });
 });
+
 
 // ✅ Ruta solo para usuarios Pro o Premium
 app.get('/api/pro-feature', authenticateToken, authorizePlan(['pro', 'premium']), (req, res) => {
@@ -174,44 +181,66 @@ app.get('/api/pro-feature', authenticateToken, authorizePlan(['pro', 'premium'])
 // ✅ Webhook (público o protegido, tú decides)
 app.post('/webhook', async (req, res) => {
   const incomingMsg = req.body.Body?.trim().toLowerCase() || '';
+  const phone = req.body.From; // asumimos que From es el número del usuario (si usas Twilio)
 
-  const rows = await Response.findAll();
-  const respuestas = {};
-  rows.forEach((row) => {
-    respuestas[row.key] = row.value;
-  });
+  try {
+    // Buscar usuario por número (adaptar según cómo guardas eso)
+    const user = await User.findOne({ where: { phone } }); // ← debes guardar phone en registro
 
-  let responseMessage = '';
+    if (!user) {
+      return res.type('text/xml').send(`<Response><Message>Usuario no encontrado.</Message></Response>`);
+    }
 
-  switch (incomingMsg) {
-    case '1':
-      responseMessage = respuestas.option1;
-      break;
-    case '2':
-      responseMessage = respuestas.option2;
-      break;
-    case '3':
-      responseMessage = respuestas.option3;
-      break;
-    case '4':
-      responseMessage = respuestas.option4;
-      break;
-    case 'catalogo':
-    case 'catálogo':
-      responseMessage = respuestas.catalog_url || 'No se ha cargado ningún catálogo aún.';
-      break;
-    default:
-      responseMessage = respuestas.greeting;
-      break;
+    // Obtener respuestas solo de este usuario
+    const rows = await Response.findAll({ where: { userId: user.id } });
+    const respuestas = {};
+    rows.forEach((row) => {
+      respuestas[row.key] = row.value;
+    });
+
+    let responseMessage = '';
+
+    if ((user.plan === 'pro' || user.plan === 'premium') && respuestas.custom_prompt) {
+      // Usar IA personalizada
+      try {
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            { role: 'system', content: respuestas.custom_prompt },
+            { role: 'user', content: incomingMsg }
+          ]
+        });
+        responseMessage = completion.choices[0].message.content.trim();
+      } catch (err) {
+        console.error('OpenAI error:', err);
+        responseMessage = 'Error con IA personalizada.';
+      }
+    } else {
+      // Plan básico o sin IA, respuestas normales
+      switch (incomingMsg) {
+        case '1': responseMessage = respuestas.option1; break;
+        case '2': responseMessage = respuestas.option2; break;
+        case '3': responseMessage = respuestas.option3; break;
+        case '4': responseMessage = respuestas.option4; break;
+        case 'catalogo':
+        case 'catálogo': responseMessage = respuestas.catalog_url || 'No hay catálogo disponible.'; break;
+        default: responseMessage = respuestas.greeting;
+      }
+    }
+
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+    <Response>
+      <Message>${responseMessage}</Message>
+    </Response>`;
+    res.type('text/xml').send(twiml);
+
+  } catch (err) {
+    console.error('Webhook error:', err);
+    res.type('text/xml').send(`<Response><Message>Error inesperado.</Message></Response>`);
   }
-
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-  <Response>
-    <Message>${responseMessage}</Message>
-  </Response>`;
-
-  res.type('text/xml').send(twiml);
 });
+
+
 
 
 // 🚀 Iniciar servidor
