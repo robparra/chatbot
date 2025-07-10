@@ -166,17 +166,21 @@ app.post('/webhook', async (req, res) => {
       return res.type('text/xml').send(`<Response><Message>Usuario no encontrado.</Message></Response>`);
     }
 
+    console.log('🔍 Plan del usuario:', user.plan);
+
     const rows = await Response.findAll({ where: { userId: user.id } });
     const respuestas = {};
     rows.forEach((row) => {
       respuestas[row.key] = row.value;
     });
 
-    const hasCustomPrompt = respuestas.custom_prompt && respuestas.custom_prompt.trim() !== '';
-
     let responseMessage = '';
 
-    if ((user.plan === 'pro' || user.plan === 'premium') && hasCustomPrompt) {
+    // ✅ Asegúrate de que solo los planes válidos usen OpenAI
+    const plan = user.plan?.toLowerCase();
+    const isProOrPremium = plan === 'pro' || plan === 'premium';
+
+    if (isProOrPremium && respuestas.custom_prompt) {
       try {
         const completion = await openai.chat.completions.create({
           model: 'gpt-3.5-turbo',
@@ -191,6 +195,7 @@ app.post('/webhook', async (req, res) => {
         responseMessage = 'Ocurrió un error con la IA personalizada.';
       }
     } else {
+      // Respuestas básicas sin IA
       switch (incomingMsg) {
         case '1': responseMessage = respuestas.option1 || ''; break;
         case '2': responseMessage = respuestas.option2 || ''; break;
@@ -214,6 +219,7 @@ app.post('/webhook', async (req, res) => {
     res.type('text/xml').send(`<Response><Message>Error inesperado.</Message></Response>`);
   }
 });
+
 
 
 // Iniciar servidor
