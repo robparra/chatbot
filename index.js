@@ -12,6 +12,16 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'un-secreto-muy-seguro';
+
+app.use(cors());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
 // Asegura que la carpeta de uploads exista
 const uploadDir = './uploads';
 if (!fs.existsSync(uploadDir)) {
@@ -41,17 +51,6 @@ app.post('/api/upload-catalog', authenticateToken, upload.single('catalog'), (re
 
 // Sirve los archivos estáticos subidos
 app.use('/uploads', express.static('uploads'));
-
-
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'un-secreto-muy-seguro';
-
-app.use(cors());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
 
 // Middleware para validar JWT
 function authenticateToken(req, res, next) {
