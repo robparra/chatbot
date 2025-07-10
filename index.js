@@ -163,6 +163,10 @@ app.post('/webhook', async (req, res) => {
     case '4':
       responseMessage = respuestas.option4;
       break;
+    case 'catalogo':
+    case 'catálogo':
+      responseMessage = respuestas.catalog_url || 'No se ha cargado ningún catálogo aún.';
+      break;
     default:
       responseMessage = respuestas.greeting;
       break;
@@ -175,6 +179,7 @@ app.post('/webhook', async (req, res) => {
 
   res.type('text/xml').send(twiml);
 });
+
 
 // 🚀 Iniciar servidor
 app.listen(PORT, () => {
