@@ -8,6 +8,40 @@ import cors from 'cors';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import userRoutes from './routes/users.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+// Asegura que la carpeta de uploads exista
+const uploadDir = './uploads';
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+// Configuración de multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const filename = `catalog_${Date.now()}${ext}`;
+    cb(null, filename);
+  }
+});
+const upload = multer({ storage });
+
+// Ruta para subir el catálogo
+app.post('/api/upload-catalog', authenticateToken, upload.single('catalog'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No se recibió ningún archivo' });
+  }
+
+  const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+  res.json({ catalogUrl: url });
+});
+
+// Sirve los archivos estáticos subidos
+app.use('/uploads', express.static('uploads'));
+
 
 dotenv.config();
 
