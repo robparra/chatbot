@@ -172,9 +172,11 @@ app.post('/webhook', async (req, res) => {
       respuestas[row.key] = row.value;
     });
 
+    const hasCustomPrompt = respuestas.custom_prompt && respuestas.custom_prompt.trim() !== '';
+
     let responseMessage = '';
 
-    if ((user.plan === 'pro' || user.plan === 'premium') && respuestas.custom_prompt) {
+    if ((user.plan === 'pro' || user.plan === 'premium') && hasCustomPrompt) {
       try {
         const completion = await openai.chat.completions.create({
           model: 'gpt-3.5-turbo',
@@ -212,6 +214,7 @@ app.post('/webhook', async (req, res) => {
     res.type('text/xml').send(`<Response><Message>Error inesperado.</Message></Response>`);
   }
 });
+
 
 // Iniciar servidor
 app.listen(PORT, () => {
