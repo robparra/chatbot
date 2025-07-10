@@ -15,6 +15,11 @@ const User = db.define('User', {
     type: DataTypes.STRING, // "basic", "pro", "premium"
     allowNull: false,
     defaultValue: 'basic'
+  },
+  phone: {
+    type: DataTypes.STRING,
+    unique: true,
+    allowNull: true // Puede ser null si no todos los usuarios tienen teléfono registrado
   }
 });
 

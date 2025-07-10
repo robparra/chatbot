@@ -74,9 +74,9 @@ function authorizePlan(allowedPlans) {
 
 app.use('/api/users', userRoutes);
 
-// Inicializar base de datos
-db.sync().then(async () => {
-  console.log('Base de datos lista');
+// ** Cambiado a sync con alter: true para agregar columna phone sin perder datos **
+db.sync({ alter: true }).then(async () => {
+  console.log('Base de datos lista y sincronizada con alter: true');
 }).catch(console.error);
 
 db.authenticate()
@@ -99,6 +99,7 @@ app.post('/api/register', async (req, res) => {
 
     res.json({ message: 'Usuario creado', userId: user.id });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Error interno' });
   }
 });
@@ -123,6 +124,7 @@ app.post('/api/login', async (req, res) => {
 
     res.json({ token });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Error interno' });
   }
 });
@@ -156,7 +158,7 @@ app.post('/webhook', async (req, res) => {
   console.log('📲 Body recibido:', req.body);
 
   const incomingMsg = req.body.Body?.trim().toLowerCase() || '';
-  const phone = req.body.From?.replace('whatsapp:', '').trim(); // normalizar
+  const phone = req.body.From?.replace('whatsapp:', '').trim();
 
   try {
     const user = await User.findOne({ where: { phone } });
